@@ -1,5 +1,10 @@
+//hmmmm, wonder what this piece of code does:D
 
-//TCP Echo Client Pragram
+//dont scroll down!!
+
+
+
+//thats it, stop right thereee...ruins the surprise if yu go further :( 
 
 #include<sys/socket.h>
 #include<sys/types.h>
@@ -17,8 +22,8 @@ struct sockaddr_in serv_addr;
 
 int skfd, r, w;
 
-unsigned short serv_port;
-char serv_ip[] = "152.67.7.144";
+unsigned short serv_port; 
+char serv_ip[20];// = "127.0.0.1"; //152.67.7.144: cloudboot
 
 
 char rbuff[128];	//stores strings received frm server
@@ -26,8 +31,11 @@ char sbuff[128];	//stores wtv client inputs
 
 int main(int argc, char *argv[]) {
 	bzero(&serv_addr, sizeof(serv_addr));
+	
+	printf("Enter Server IP:");
+	scanf("%s",serv_ip);
 
-	printf("Enter NGrok Port: ");
+	printf("Enter Server Port: ");
 	scanf("%hu",&serv_port);
 
 	serv_addr.sin_family=AF_INET;
@@ -41,7 +49,7 @@ int main(int argc, char *argv[]) {
 		printf("CLIENT ERROR cannot create socket");
 		exit(1);
 	}
-
+	
 
 	if((connect(skfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)))<0)
 	{
@@ -51,17 +59,17 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 	printf("CLIENT connected to server\n");
-
+	
 	//initiate password authentication
 	printf("Enter password: ");
 	scanf("%s",sbuff);
-
+	
 	if(w=write(skfd, sbuff, 128)<0) {
 		printf("CLIENT ERROR: Cannot send password to server\n");
 		close(skfd);
 		exit(1);
 	}
-
+	
 	if(r=read(skfd,rbuff,128)<0) {
 		printf("CLIENT ERROR: Cannot read auth response\n");
 		close(skfd);
@@ -73,34 +81,34 @@ int main(int argc, char *argv[]) {
 		close(skfd);
 		exit(1);
 	}
-
+	
 	printf("AUTHENTICATION SUCCESSFUL!\n");
 	do{		//Chat Loop
-
-		printf("Enter your message: ");
+	
+		printf("Enter your message: ");	
 		scanf("%s",sbuff);
-
-		if((w=write(skfd, sbuff, 128))<0)
+			
+		if((w=write(skfd, sbuff, 128))<0) 
 		{
 			printf("CLIENT Error: cannot send msg to echo server");
 			close(skfd);
-			exit(1);
+			exit(1);		
 		}
 		if(strcmp(sbuff,"STOP")==0) {
 			printf("Stop command received, Terminating chat...\n");
 			break;
 		}
-
+		
 		if((r=read(skfd,rbuff,128))<0)
 			printf("CLIENT ERROR cannot reveice mssg frm server");
 		else {
 			rbuff[r]='\0';
 			printf("Server '%s' says: %s\n",inet_ntoa(serv_addr.sin_addr),rbuff);
 			if(strcmp(rbuff,"STOP")==0) {
-				printf("Stop command received, Terminating chat...\n");
+				printf("Stop command received, Terminating chat...\n");			
 				break;
 			}
-		}
+		}	
 	}while(1);
 	close(skfd);
 	exit(1);

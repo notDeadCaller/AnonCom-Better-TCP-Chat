@@ -9,17 +9,24 @@
 #include<stdlib.h>
 #include<unistd.h>
 
-#define PSSWRD "TEST"
+#define PSSWRD "theyarewatching123"
+#define MAX_ALLOWED 20   //max IPs in whiteleist
+char *allowed_ips[MAX_ALLOWED];//string to store whitelist client IPs
+int allowed_count=0;
 
 struct sockaddr_in serv_addr, cli_addr;
 
 int listenfd, connfd, r, w,val, cli_addr_len;
+const int sizeFail=5, sizeOk=3;
 
-unsigned short serv_port=25020;
+unsigned short serv_port=25021;
 char serv_ip[]="0.0.0.0";
 
 char buff[128];	//stores received strings
 char rbuff[128];
+
+void getAllowlist(const char *fP);
+int isAllowed(const char *clientIP);
 
 int main() {
 
@@ -52,7 +59,7 @@ int main() {
 		exit(1);
 	}
 
-
+	getAllowlist("firewall.conf");
 
 
 	cli_addr_len=sizeof(cli_addr);
@@ -65,7 +72,16 @@ int main() {
 			close(listenfd);
 			exit(1);
 		}
-		printf("SERVER connection from client %s ccepted\n",inet_ntoa(cli_addr.sin_addr));
+		char client_ip[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, &cli_addr.sin_addr, client_ip, sizeof(client_ip));
+
+		if (!isAllowed(client_ip)) {
+		    printf("Connection from %s REJECTED (not in allowlist)\n", client_ip);
+		    close(connfd);
+		    continue;
+		}
+
+		printf("SERVER connection from client %s accepted\n",inet_ntoa(cli_addr.sin_addr));
 
 	//Initiate Password Auth
 		r=read(connfd,buff,128);
@@ -77,11 +93,11 @@ int main() {
 		buff[r]='\0';
 		if(strcmp(buff,PSSWRD)!=0) {
 			printf("SERVER: Wrong password from client %s\n",inet_ntoa(cli_addr.sin_addr));
-			write(connfd,"FAIL",128);
+			write(connfd,"FAIL",sizeFail);	//TODO: put len of FAIL (5) in const int for safety
 			close(connfd);
 			continue;
 		} else {
-			write(connfd,"OK",128);
+			write(connfd,"OK",sizeOk);	//TODO: put len of OK (3) in const int for safety
 			printf("SERVER: Auth success for client %s\n",inet_ntoa(cli_addr.sin_addr));
 		}
 
@@ -90,7 +106,6 @@ int main() {
 			printf("SERVER ERROR cannot receive message frm clinet");
 		else
 		{
-			printf("r:%d\n",r);
 			buff[r]='\0';
 
 			if(strcmp(buff,"STOP")==0) {
@@ -113,4 +128,33 @@ int main() {
 		}while(1);
 
 	}
+}
+
+void getAllowlist(const char *firewall) {
+    FILE *fP = fopen(firewall, "r");
+    if (!fP) {
+        perror("Could not open firewall.conf");
+        exit(1);
+    }
+
+    char line[INET_ADDRSTRLEN];
+    while (fgets(line, sizeof(line),fP)) {
+        // remove newline
+        line[strcspn(line, "\r\n")]=0;
+        if (strlen(line)>0 && allowed_count<MAX_ALLOWED) {
+            allowed_ips[allowed_count]=strdup(line);
+            allowed_count++;
+        }
+    }
+    fclose(fP);
+    printf("Loaded %d allowed IP(s) from %s\n", allowed_count, firewall);
+}
+
+int isAllowed(const char *clientIP) {
+    for (int i=0;i<allowed_count;i++) {
+        if (strcmp(clientIP, allowed_ips[i])==0) {
+            return 1; // match found
+        }
+    }
+    return 0; // not allowed
 }
