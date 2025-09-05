@@ -12,7 +12,7 @@ ADDED 'client.c' and 'server.c'
       -Private to public IP tunelling via Cloudboot.in
 
 -------------------------
-Log ("they are watching")
+Log 2 ("they are watching")
 06.Sep.2025
 
 UPDATED 'client.c' and 'server.c'
