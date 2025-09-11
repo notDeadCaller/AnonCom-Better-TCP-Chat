@@ -18,6 +18,17 @@ Log 2 ("they are watching")
 UPDATED 'client.c' and 'server.c'
 ADDED 'firewall.conf'
   Features as of this commit:
-      -Added a toy in-code firewall via IP allowlisting
+      -Added an in-code, toy firewall via IP allowlisting
       -Accomodate spaces in between chat message sentences
       -Fixed a potential security risk in variable handling
+
+-------------------------
+Log 3 ("You didn't say the magic word!")
+11.Sep.2025
+
+UPDATED 'client.c' and 'server.c'
+  Features as of this commit:
+      -Added a golden passkey, when entered, skips the firewall checking
+      -Added colors to console lines at important checkpoints
+      -Added sound pings as notifcation for message receipt
+      -Improved console text formatting
