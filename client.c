@@ -1,10 +1,5 @@
-//hmmmm, wonder what this piece of code does:D
 
-//dont scroll down!!
-
-
-
-//thats it, stop right thereee...ruins the surprise if yu go further :( 
+//TCP Echo Client Pragram
 
 #include<sys/socket.h>
 #include<sys/types.h>
@@ -61,7 +56,7 @@ int main(int argc, char *argv[]) {
 	printf("CLIENT connected to server\n");
 	
 	//initiate password authentication
-	printf("Enter password: ");
+	printf("\033[0;33mEnter password: \033[0m ");
 	scanf("%s",sbuff);
 	
 	if(w=write(skfd, sbuff, 128)<0) {
@@ -82,11 +77,11 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 	
-	printf("AUTHENTICATION SUCCESSFUL!\n");
+	printf("\a\033[0;32mAUTHENTICATION SUCCESSFUL!\033[0m\n");
 	do{		//Chat Loop
 	
 		printf("Enter your message: ");	
-		scanf("%s",sbuff);
+		scanf(" %[^\n]s",sbuff);
 			
 		if((w=write(skfd, sbuff, 128))<0) 
 		{
@@ -103,7 +98,7 @@ int main(int argc, char *argv[]) {
 			printf("CLIENT ERROR cannot reveice mssg frm server");
 		else {
 			rbuff[r]='\0';
-			printf("Server '%s' says: %s\n",inet_ntoa(serv_addr.sin_addr),rbuff);
+			printf("\aServer '%s' says:\033[0;36\6m %s\033[0m\n",inet_ntoa(serv_addr.sin_addr),rbuff);
 			if(strcmp(rbuff,"STOP")==0) {
 				printf("Stop command received, Terminating chat...\n");			
 				break;
