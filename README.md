@@ -41,3 +41,13 @@ UPDATED 'client.c' and 'server.c'<br>
 - [x] Added colors to console lines at important checkpoints<br>
 - [x] Added sound pings as notifcation for message receipt<br>
 - [x] Improved console text formatting<br>
+
+-------------------------
+Log 4 ("_for the unkown listeners of the night_") <br>
+27.Sep.2025
+
+UPDATED 'client.c' and 'server.c'<br>
+  Features as of this commit:<br>
+- [x] Added two-way encryption in chat messages using the Vigenere Cipher<br>
+- [x] Added Diffie-Hellman Exchange protocol to generate & exchange server & client side keys<br>
+- [x] Optimized functions and scope of variables as necessary
