@@ -50,4 +50,5 @@ UPDATED 'client.c' and 'server.c'<br>
   Features as of this commit:<br>
 - [x] Added two-way encryption in chat messages using the Vigenere Cipher<br>
 - [x] Added Diffie-Hellman Exchange protocol to generate & exchange server & client side keys<br>
+- [x] Added the rotating dash waiting animation using threads
 - [x] Optimized functions and scope of variables as necessary
