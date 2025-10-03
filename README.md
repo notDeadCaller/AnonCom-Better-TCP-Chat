@@ -52,3 +52,13 @@ UPDATED 'client.c' and 'server.c'<br>
 - [x] Added Diffie-Hellman Exchange protocol to generate & exchange server & client side keys<br>
 - [x] Added the rotating dash waiting animation using threads
 - [x] Optimized functions and scope of variables as necessary
+
+-------------------------
+Log 5 ("_Keep em coming_") <br>
+03.Oct.2025
+
+UPDATED 'client.c' and 'server.c'<br>
+  Features as of this commit:<br>
+- [x] Added asynchronous texting for using separate threads for sending() & receiving()<br>
+- [x] Added clientside RTT latency checker keys<br>
+- [x] Optimized client code by removing stale functions
