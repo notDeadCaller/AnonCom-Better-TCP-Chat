@@ -19,21 +19,23 @@
 char *allowed_ips[MAX_ALLOWED];//string to store whitelist client IPs
 int allowed_count=0;
 int goldenKeyFlag=0;
-atomic_int waiting = 0;
+atomic_int waiting=0;
 
 struct sockaddr_in serv_addr, cli_addr;
 
 int listenfd, connfd, r, w,val, cli_addr_len;
-const int sizeFail=5, sizeOk=3;
 
-unsigned short serv_port=25020;
+unsigned short serv_port=25021;
 char serv_ip[]="0.0.0.0";
 char buff[128];	//stores received strings
 char rbuff[128];
+pthread_t send_thread, recv_thread;
 //functions
 void getAllowlist(const char *fP);
 int isAllowed(const char *clientIP);
 void* startWaitAnim(void *arg);
+void *send_handler(void *arg);
+void *receive_handler(void *arg);
 long dhexchange();
 char *digitsToLetters( long number);
 int reverseDigits(int num);
@@ -41,7 +43,7 @@ char *vigenereDe(const char *cipher, const char *key);
 char *vigenereEn(char plain[128],char key[11]);
 long modexp(long base, long exp, long mod) {
     long result=1;
-    base %= mod;
+    base%=mod;
     while (exp>0) {
         if (exp&1) result=(result*base)%mod;
         exp>>=1;
@@ -51,7 +53,7 @@ long modexp(long base, long exp, long mod) {
 
 
 int main() {
-
+	const int sizeFail=5, sizeOk=3;
 	printf("<TCP CHAT SERVER>\n");
 	pthread_t tid;
 
@@ -60,14 +62,14 @@ int main() {
 		printf("\nserver error: cannot create socket!\n");
 		exit(1);
 	}
-
+	
 	bzero(&serv_addr, sizeof(serv_addr));
 
 	serv_addr.sin_family=AF_INET;
 	serv_addr.sin_port=htons(serv_port);
 	inet_aton(serv_ip, (&serv_addr.sin_addr));
 
-
+	
 	if((bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)))<0)
 	{
 		printf("\nSERVER ERROR: cannot bind");
@@ -75,14 +77,14 @@ int main() {
 		exit(1);
 	}
 
-	if((listen(listenfd, 5))<0)
+	if((listen(listenfd, 5))<0) 
 	{
 		printf("\nSERVER ERROR cannot listen");
 		close(listenfd);
 		exit(1);
 	}
-
-	getAllowlist("firewall.conf");
+	
+	getAllowlist("firewall.conf");	
 
 	cli_addr_len=sizeof(cli_addr);
 	for(; ;)
@@ -90,25 +92,23 @@ int main() {
 		printf("SERVER Listening for clients\n");
 		atomic_store(&waiting, 1);
 		pthread_create(&tid, NULL,startWaitAnim, NULL);
-
+		
 		if((connfd=accept(listenfd, (struct sockaddr*)&cli_addr,&cli_addr_len))<0)
-		{
-
+		{		
 			printf("SERVER ERROR cannot accept client coonections\n");
 			close(listenfd);
 			exit(1);
 		}
 		atomic_store(&waiting, 0);
 		pthread_join(tid, NULL);
-
+		
 		char client_ip[INET_ADDRSTRLEN];
 		inet_ntop(AF_INET, &cli_addr.sin_addr, client_ip, sizeof(client_ip));
-
+		
 		//RUDIMENTARY CONNECTION ESTABLISHED
 		printf("SERVER connection from client %s received\n",inet_ntoa(cli_addr.sin_addr));
-
-
-	//Initiate Password Auth
+	
+	//Initiate Password Auth	
 		r=read(connfd,buff,128);	//read password/goldkey
 		if(r<0) {
     			printf("SERVER Error: no password received\n");
@@ -120,75 +120,64 @@ int main() {
 			goldenKeyFlag=1;
 			printf("***Golden Key ACTIVATED***\n");
 		}
-
-		if(goldenKeyFlag!=1) {
+			
+		if(goldenKeyFlag!=1) {			
 			if(strcmp(buff,PSSWRD)!=0) {
 				printf("\033[0;31mSERVER: Wrong password from client %s\033[0m\n",inet_ntoa(cli_addr.sin_addr));
-				write(connfd,"FAIL",sizeFail);
+				write(connfd,"FAIL",sizeFail);	
 				close(connfd);
 				continue;
 			} else if (!isAllowed(client_ip)) { //if not allowlisted,
 			    printf("\a\033[0;31mConnection from %s REJECTED (not in allowlist)\033[0m\n", client_ip);
 			    close(connfd);
-			    continue;
-			}
-
+			    continue;		
+			} 
 		}
-
-		const long key=dhexchange();
+		
+		const long key=dhexchange();	
 		if (key == 0) { // Check if the exchange failed
-			//printf("Server: Diffie-Hellman exchange failed.\n");
+			printf("Server: Diffie-Hellman exchange failed.\n");
 			close(connfd);
 			continue;
-		}
-
-		write(connfd,"OK",sizeOk);
+		}		
+		write(connfd,"OK",sizeOk);	
 		printf("SERVER: \033[0;32mAUTHENTICATION SUCCESSFUL for %s\033[0m\n",inet_ntoa(cli_addr.sin_addr));
-
 		fflush(stdout);
 
-		//TODO: do DH exchange & encrypt before chat
+		char ping_buffer[128];
+		int n = read(connfd, ping_buffer, sizeof(ping_buffer) - 1);
+		ping_buffer[n] = '\0';
+
+		if (strcmp(ping_buffer, "LATENCY_PING") == 0) {
+			write(connfd, "PONG", 4);
+		} else {
+			printf("Error: Expected LATENCY_PING, got something else.\n");
+			close(connfd);
+			continue; // Go back to listening
+		}
+		
+		//chat threads		
 		char *charKey=digitsToLetters(key);
 		printf("Server key: %ld --> %s\n", key,charKey);
 
-		do{	//Chat Loop
-			atomic_store(&waiting, 1);
-			pthread_create(&tid, NULL,startWaitAnim, NULL);
-			if((r=read(connfd,buff,128))<0)
-				printf("SERVER ERROR cannot receive message frm clinet\n");
-			else
-			{
-				char *temp=vigenereDe(buff,charKey);	//decrypt incoming msg
-				strcpy(buff,temp);
+		printf(":::Type 'STOP' to end the connection:::\n");
 
-				atomic_store(&waiting, 0);
-				pthread_join(tid, NULL);
-				buff[r]='\0';
+		if (pthread_create(&send_thread, NULL, send_handler, NULL) != 0) {	//sending thread
+		    perror("Failed to create send thread");
+		    close(connfd);
+		    continue; // Go back to listening
+		}
 
-				if(strcmp(buff,"STOP")==0) {
-					printf("Stop command received, Terminating chat...\n");
-					break;
-				}
-				printf("\aClient '%s' says:\033[0;36m %s\033[0m\n",inet_ntoa(cli_addr.sin_addr),buff);
+		if (pthread_create(&recv_thread, NULL, receive_handler, NULL) != 0) {	//listening thread
+		    perror("Failed to create receive thread");
+		    pthread_cancel(send_thread);
+		    close(connfd);
+		    continue; // Go back to listening
+		}
 
-
-				printf("Enter your message: ");
-				scanf(" %[^\n]s",rbuff);
-				temp=vigenereEn(rbuff,charKey);
-				strcpy(rbuff,temp);
-
-				if((w=write(connfd,rbuff,128))<0)
-					printf("SERVER ERROR Cannot send message\n");
-				char stopStr[128]="STOP";
-				stopStr[128]='\0';
-				temp=vigenereEn(stopStr,charKey);
-				if(strcmp(rbuff,temp)==0) {
-					printf("Stop command received, Terminating chat...\n");
-					break;
-				}
-			}
-		}while(1);
-
+		pthread_join(send_thread, NULL);
+		pthread_join(recv_thread, NULL);
+		close(connfd);
 	}
 }
 
@@ -232,11 +221,56 @@ void* startWaitAnim(void *arg) {
         usleep(200000); // 300 ms
         printf("\r \r");
         fflush(stdout);
-    }
+    }    
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     printf("\r                             \r"); //take cursor to start, print bigass space, then again to start
     fflush(stdout);
     return NULL;
+}
+
+void *send_handler(void *arg) {
+    char s_buff[128];
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    while (1) {
+        // Read user input from the server's console
+        scanf(" %[^\n]s", s_buff);
+        
+        if (write(connfd, s_buff, strlen(s_buff)) < 0) {
+            perror("ERROR: write to client failed");
+        }
+        // If server types STOP, signal termination
+        if (strcmp(s_buff, "STOP") == 0) {
+            printf("STOP Command Received...Terminating Session...\n");
+            break;
+        }
+    }
+    pthread_cancel(recv_thread);
+    pthread_exit(NULL);
+}
+
+void *receive_handler(void *arg) {
+    char r_buff[128];
+    int bytes_read;
+    while (1) {
+        bytes_read = read(connfd, r_buff, sizeof(r_buff) - 1);
+        
+        if (bytes_read > 0) {
+            r_buff[bytes_read] = '\0';
+            printf("Client says: \033[0;36m%s\033[0m\n", r_buff);
+            
+            // If STOP is received from client, signal termination
+            if (strcmp(r_buff, "STOP") == 0) {
+                printf("STOP Command Received...Terminating Session...\n");
+                break;
+            }
+        } else {
+            // This happens if the client disconnects
+            printf("Client disconnected.\n");
+            break;
+        }
+    }
+    pthread_cancel(send_thread);
+    pthread_exit(NULL);
 }
 
 long dhexchange() {
@@ -252,7 +286,7 @@ long dhexchange() {
 	    //perror("recv r2");
 	    close(connfd);
 	    return 0;
-	}
+	}		
 	return modexp(r2, y, mod);
 }
 
@@ -280,7 +314,7 @@ int reverseDigits(int num) {
         rev_num = rev_num * 10 + num % 10;
         num = num / 10;
     }    return rev_num;
-}
+} 
 
 
 char *vigenereDe(const char *cipher, const char *key) {
@@ -323,12 +357,12 @@ char *vigenereDe(const char *cipher, const char *key) {
 
 char *vigenereEn(char plain[128],char key[11]) {
 	int i,counter=0,keyLen,ki,pi;
-	static char cipher[128];
+	static char cipher[128];	
 	const int temp=strlen(plain);
 	char newKey[temp+1],c;
 	newKey[temp+1]='\0';
 	keyLen=strlen(key);
-
+	
 	for(i=0;i<temp;++i) {	//generate keystream of same length as plaintext
 		if(counter>=keyLen)
 			counter=0;
@@ -336,8 +370,7 @@ char *vigenereEn(char plain[128],char key[11]) {
 		counter++;
 	}
 	newKey[temp]='\0';
-	//printf("newkey: %s\n",newKey);	//TEST
-
+	
 	int kpos=0; // position in key::VERI CURCIAL::
 	for (i=0;i<temp;i++) {
 	    c=plain[i];
@@ -350,6 +383,5 @@ char *vigenereEn(char plain[128],char key[11]) {
 	    } else	cipher[i] = c;
 	}
 	cipher[temp]='\0';
-	//printf("Cipher: %s\n",cipher);
 	return cipher;
 }
