@@ -62,3 +62,15 @@ UPDATED 'client.c' and 'server.c'<br>
 - [x] Added asynchronous texting for using separate threads for sending() & receiving()<br>
 - [x] Added clientside RTT latency checker keys<br>
 - [x] Optimized client code by removing stale functions
+
+-------------------------
+Log 5 ("_Repair, Reflect and Re-emerge_") <br>
+08.Oct.2025
+
+UPDATED 'client.c' and 'server.c'<br>
+ADDED 'motd.txt' <br>
+  Features as of this commit:<br>
+- [x] Remodelled chat threads and fixed a major practical issue* of asynchronous chat using the ncurses library<br>
+- [x] Significant terminal UI overhaul<br>
+- [x] Added rate limiting for clients via Token Bucket principle<br>
+- [x] Added a word of the day for each chat session<br>
