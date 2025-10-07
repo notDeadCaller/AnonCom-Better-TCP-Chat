@@ -10,16 +10,25 @@
 #include<pthread.h>
 #include<unistd.h>
 #include<math.h>
+#include<ncurses.h>
 #include <stdatomic.h>
 #include <ctype.h>
 
 #define PSSWRD "theyarewatching123"
 #define GOLDENKEY "DontForgetTheGoldenKey123$"
 #define MAX_ALLOWED 20   //max IPs in whiteleist
+#define MAX_CHARGES 12.0      
+#define CHARGE_RATE 1.5 
+
 char *allowed_ips[MAX_ALLOWED];//string to store whitelist client IPs
-int allowed_count=0;
+int allowed_count=0;	//max IPs allowed
 int goldenKeyFlag=0;
-atomic_int waiting=0;
+atomic_int waiting=0;	//monitor for dash animation
+double clientCharges = MAX_CHARGES;
+time_t last_refill_time;
+WINDOW *input_win;		//ncurses window thingy
+pthread_mutex_t screen_mutex;		//ncurses Window thread
+pthread_t send_thread, recv_thread;	//chat threads
 
 struct sockaddr_in serv_addr, cli_addr;
 
@@ -29,13 +38,14 @@ unsigned short serv_port=25021;
 char serv_ip[]="0.0.0.0";
 char buff[128];	//stores received strings
 char rbuff[128];
-pthread_t send_thread, recv_thread;
 //functions
 void getAllowlist(const char *fP);
+char *getMessageOfTheDay();
 int isAllowed(const char *clientIP);
 void* startWaitAnim(void *arg);
 void *send_handler(void *arg);
 void *receive_handler(void *arg);
+int can_send_message();
 long dhexchange();
 char *digitsToLetters( long number);
 int reverseDigits(int num);
@@ -155,12 +165,42 @@ int main() {
 			close(connfd);
 			continue; // Go back to listening
 		}
+		last_refill_time = time(NULL);	//start client chat with max charges
+		clientCharges=MAX_CHARGES;
 		
 		//chat threads		
 		char *charKey=digitsToLetters(key);
 		printf("Server key: %ld --> %s\n", key,charKey);
+		char *motd=getMessageOfTheDay();		//send message of day to client
+		printf("Word of the day is:  %s",motd);
+		w=write(connfd,motd, strlen(motd));
+		
+		printf("\n:::Type 'STOP' to end the connection:::\n");
+		sleep(2);//2sec delay
+		initscr();
+		start_color();
+	    	cbreak();	//---BEGIN NCURSES MODE---
+	    
+		int height, width;
+	    	getmaxyx(stdscr, height, width);
+		for (int i = 0; i < LINES - 1; i++)	//push to (start chat from) the bottom
+        		wprintw(stdscr, "\n");
+	    	// Enable scrolling for the main window (our chat history)
+	    	scrollok(stdscr, TRUE);
+	    	// Clear the main screen before we start
+	    	clear();	//TODO:
+	    	refresh();
 
-		printf(":::Type 'STOP' to end the connection:::\n");
+	    	// Create a 1-line-high window at the bottom of the screen for input
+	   	input_win = newwin(1, width, height - 1, 0);
+	    
+	    	pthread_mutex_init(&screen_mutex, NULL);
+
+	    	wprintw(stdscr, "--- Chat Session Started ---\n");
+	    	wrefresh(stdscr);
+
+		// Initialize the mutex
+		pthread_mutex_init(&screen_mutex, NULL);
 
 		if (pthread_create(&send_thread, NULL, send_handler, NULL) != 0) {	//sending thread
 		    perror("Failed to create send thread");
@@ -177,8 +217,12 @@ int main() {
 
 		pthread_join(send_thread, NULL);
 		pthread_join(recv_thread, NULL);
+		pthread_mutex_destroy(&screen_mutex);
+		endwin(); 
 		close(connfd);
+		
 	}
+	return 0;
 }
 
 void getAllowlist(const char *firewall) {
@@ -200,6 +244,29 @@ void getAllowlist(const char *firewall) {
     fclose(fP);
     printf("Loaded %d allowed IP(s) from %s\n", allowed_count, firewall);
 }
+
+char *getMessageOfTheDay() {
+    FILE *file = fopen("motd.txt", "r");
+    if (!file) {
+        perror("Could not load word of the day");
+        exit(1);
+    }
+	int i,totLines=0,randLine;
+    char *line=malloc(sizeof(char)*256);
+	while (fgets(line, sizeof(line), file) != NULL)
+		totLines++;
+	rewind(file);
+	srand(time(NULL));
+    randLine=(rand()%totLines);
+	for (i = 0; i < randLine; i++) {
+        fgets(line, sizeof(line), file);
+     }
+	line[strcspn(line, "\n")] = 0;
+    fclose(file);
+    return line;
+    free(line);
+}
+
 
 int isAllowed(const char *clientIP) {
     for (int i=0;i<allowed_count;i++) {
@@ -229,48 +296,73 @@ void* startWaitAnim(void *arg) {
 }
 
 void *send_handler(void *arg) {
-    char s_buff[128];
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    char sbuff[128];
+    char prompt[] = "> ";
+
     while (1) {
-        // Read user input from the server's console
-        scanf(" %[^\n]s", s_buff);
-        
-        if (write(connfd, s_buff, strlen(s_buff)) < 0) {
-            perror("ERROR: write to client failed");
-        }
-        // If server types STOP, signal termination
-        if (strcmp(s_buff, "STOP") == 0) {
-            printf("STOP Command Received...Terminating Session...\n");
-            break;
-        }
+        wgetstr(input_win, sbuff);
+        pthread_mutex_lock(&screen_mutex);
+        wprintw(stdscr, "%s%s\n", prompt, sbuff);
+        wclear(input_win);	//clear the typing line once msg is sent
+        wnoutrefresh(stdscr);	//"harder, virtual" refresh function than just wrefresh      
+        wnoutrefresh(input_win);
+        doupdate();		//"harder" update
+
+        pthread_mutex_unlock(&screen_mutex);
+        if (write(connfd, sbuff, strlen(sbuff)) < 0) break;
+        if (strcmp(sbuff, "STOP") == 0) break;
     }
     pthread_cancel(recv_thread);
     pthread_exit(NULL);
 }
 
 void *receive_handler(void *arg) {
-    char r_buff[128];
+    char rbuff[128];
     int bytes_read;
-    while (1) {
-        bytes_read = read(connfd, r_buff, sizeof(r_buff) - 1);
-        
-        if (bytes_read > 0) {
-            r_buff[bytes_read] = '\0';
-            printf("Client says: \033[0;36m%s\033[0m\n", r_buff);
-            
-            // If STOP is received from client, signal termination
-            if (strcmp(r_buff, "STOP") == 0) {
-                printf("STOP Command Received...Terminating Session...\n");
-                break;
-            }
-        } else {
-            // This happens if the client disconnects
-            printf("Client disconnected.\n");
+
+    while (1) 
+    {    
+        bytes_read = read(connfd,rbuff,sizeof(rbuff)-1);
+        if (bytes_read <= 0) //if nothing received
             break;
+        rbuff[bytes_read] = '\0';   
+        if(!can_send_message()) {
+            const char* warning="\nYou are being rate limited. Please slow down!\n";
+            write(connfd, warning, strlen(warning));
+            continue; 
         }
+	init_pair(1, COLOR_CYAN, COLOR_BLACK);             
+        pthread_mutex_lock(&screen_mutex);
+        attron(COLOR_PAIR(1));
+        wprintw(stdscr, "Client says: %s\n", rbuff);   
+        attroff(COLOR_PAIR(1));     
+        wnoutrefresh(stdscr);		//"harder, virtual" refresh function than just wrefresh        
+        wnoutrefresh(input_win);	//prevent the input bar from disappearing half cooked way
+        doupdate();			//"harder" update
+        
+        pthread_mutex_unlock(&screen_mutex);
+        if (strcmp(rbuff, "STOP") == 0) break;
     }
     pthread_cancel(send_thread);
     pthread_exit(NULL);
+}
+
+int can_send_message() {
+    time_t now = time(NULL);
+    double time_elapsed = difftime(now, last_refill_time);
+    
+    clientCharges+=time_elapsed*CHARGE_RATE; //refill charge meter
+    last_refill_time = now;
+
+    if (clientCharges>MAX_CHARGES) {	//cap charges at max alloted
+        clientCharges=MAX_CHARGES;
+    }
+
+    if (clientCharges>=1.0) {
+        clientCharges-=1.0; //spend one charge
+        return 1; // Success! Message is allowed.
+    }
+    return 0;
 }
 
 long dhexchange() {
