@@ -15,13 +15,16 @@
 #include<math.h>
 #include<ctype.h>
 #include<time.h>
+#include<ncurses.h>
 
 struct sockaddr_in serv_addr;
 
 int skfd, r, w;
-unsigned short serv_port;
+unsigned short serv_port; 
 char serv_ip[20];// = "127.0.0.1"; //152.67.7.144: cloudboot
-pthread_t send_thread, recv_thread;
+WINDOW *input_win;		//ncurses window thingy
+pthread_mutex_t screen_mutex;		//ncurses Window thread
+pthread_t send_thread, recv_thread;	//chat thread
 
 char rbuff[128];	//stores strings received frm server
 char sbuff[128];	//stores wtv client inputs
@@ -50,7 +53,7 @@ long modexp(long base, long exp, long mod) {
 int main(int argc, char *argv[]) {
 	pthread_t tid;
 	bzero(&serv_addr, sizeof(serv_addr));
-
+	
 	printf("Enter Server IP:");
 	scanf("%s",serv_ip);
 
@@ -68,7 +71,7 @@ int main(int argc, char *argv[]) {
 		printf("CLIENT ERROR cannot create socket");
 		exit(1);
 	}
-
+	
 	if((connect(skfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)))<0)
 	{
 		printf("%d\n",skfd);
@@ -77,11 +80,11 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 	printf("CLIENT connected to server\n");
-
+	
 	//initiate password authentication
-	printf("\033[0;33mEnter password: \033[0m ");
+	printf("\033[0;33mEnter password: \033[0m ");	
 	scanf("%s",sbuff);
-
+	
 	if(w=write(skfd, sbuff, 28)<0) {		//send password/goldkey
 		printf("CLIENT ERROR: Cannot send password to server\n");
 		close(skfd);
@@ -93,14 +96,14 @@ int main(int argc, char *argv[]) {
 		close(skfd);
 		exit(1);
 	}
-
+	
 	if(r=read(skfd,rbuff,128)<0) {
 		printf("CLIENT ERROR: Cannot read auth response\n");
 		close(skfd);
 		exit(1);
 	}
 	rbuff[strlen(rbuff)]='\0';
-
+	
 	if(strncmp(rbuff,"OK",2)!=0) {
 		printf("\033[0;31mAUTH FAILED! CLOSING CONNECTION...\033[0m\n");
 		close(skfd);
@@ -108,13 +111,38 @@ int main(int argc, char *argv[]) {
 	}
 	printf("\a\033[0;32mAUTHENTICATION SUCCESSFUL!\033[0m\n");
 	fflush(stdout);
-
+	
 	measure_latency(skfd);		//measure and display ping
 
 	char *charKey=digitsToLetters(key);
-	printf("Client key: %ld --> %s\n", key,charKey);
+	printf("Client key: %ld --> %s\n", key,charKey);	//key for the session
+	r=read(skfd,rbuff,128);		//read message of day frm server
+	rbuff[r]='\0';
+	printf("Message of the day is:  %s",rbuff);
+	
+	printf("\n:::Type \033[0;31m'STOP'\033[0m to end the connection:::\n");	//chat threads
+	sleep(2);//2sec delay
+	initscr();
+	start_color();
+    	cbreak();	//---BEGIN NCURSES MODE---
+    
+	int height, width;
+    	getmaxyx(stdscr, height, width);
+    	scrollok(stdscr, TRUE);	//enable scrolling thru chat
+    	// Clear the main screen before we start
+    	clear();
+    	refresh();
 
-	printf(":::Type 'STOP' to end the connection:::\n");	//chat threads
+    	// Create a 1-line-high window at the bottom of the screen for input
+   	input_win = newwin(1, width, height - 1, 0);
+    
+    	pthread_mutex_init(&screen_mutex, NULL);
+
+    	wprintw(stdscr, "--- Chat Session Started ---\n");
+    	wrefresh(stdscr);
+
+	// Initialize the mutex
+	pthread_mutex_init(&screen_mutex, NULL);
 
 	if (pthread_create(&send_thread, NULL, send_handler, NULL) != 0) {
 		perror("Failed to create send thread");
@@ -130,45 +158,65 @@ int main(int argc, char *argv[]) {
 
 	pthread_join(send_thread, NULL);
 	pthread_join(recv_thread, NULL);
+	getmaxyx(stdscr, height, width);
+	char line_buffer[width + 1];	//store last few lines of chat history
+	pthread_mutex_destroy(&screen_mutex);
+	endwin();
+	for (int i = 0; i < height - 1; i++) {
+		mvwinnstr(stdscr, i, 0, line_buffer, width);
+		char *end = line_buffer + strlen(line_buffer) - 1;
+		 while (end >= line_buffer && isspace((unsigned char)*end)) end--;
+		*(end + 1) = '\0';
+		if (strlen(line_buffer) > 0) 
+		printf("%s\n", line_buffer);
+	}
+    	printf("---------------------------\n");
 	close(skfd);
 	exit(1);
 }
 
 void *send_handler(void *arg) {
-    char s_buff[128];
+    char sbuff[128];
+    char prompt[] = "> ";
+
     while (1) {
-        scanf(" %[^\n]s", s_buff);
-        if (write(skfd, s_buff, strlen(s_buff)) < 0) {
-            perror("ERROR: write to server failed");
-            break;
-        }
-        if (strcmp(s_buff, "STOP") == 0) {
-            printf("STOP Command Received...Terminating Session...\n");
-            break;
-        }
+        wgetstr(input_win, sbuff);
+        pthread_mutex_lock(&screen_mutex);
+        wprintw(stdscr, "%s%s\n", prompt, sbuff);
+        wclear(input_win);	//clear the typing line once msg is sent
+        wnoutrefresh(stdscr);	//"harder, virtual" refresh function than just wrefresh      
+        wnoutrefresh(input_win);
+        doupdate();		//"harder" update
+
+        pthread_mutex_unlock(&screen_mutex);
+        if (write(skfd, sbuff, strlen(sbuff)) < 0) break;
+        if (strcmp(sbuff, "STOP") == 0) break;
     }
     pthread_cancel(recv_thread);
     pthread_exit(NULL);
 }
 
 void *receive_handler(void *arg) {
-    char r_buff[128];
+    char rbuff[128];
     int bytes_read;
-    while (1) {
-        bytes_read = read(skfd, r_buff, sizeof(r_buff) - 1);
 
-        if (bytes_read > 0) {
-            r_buff[bytes_read] = '\0';
-            printf("Server says: \033[0;36m%s\033[0m\n", r_buff);
-
-            if(strcmp(r_buff, "STOP") == 0) {
-                printf("STOP Command Received...Terminating Session...\n");
-                break;
-            }
-        } else {
-            printf("Server disconnected.\n");
+    while (1) 
+    {    
+        bytes_read = read(skfd,rbuff,sizeof(rbuff)-1);
+        if (bytes_read <= 0) //if nothing received
             break;
-        }
+        rbuff[bytes_read] = '\0';   
+	init_pair(1, COLOR_CYAN, COLOR_BLACK);             
+        pthread_mutex_lock(&screen_mutex);
+        attron(COLOR_PAIR(1));
+        wprintw(stdscr, "Server says: %s\n", rbuff);   
+        attroff(COLOR_PAIR(1));     
+        wnoutrefresh(stdscr);		//"harder, virtual" refresh function than just wrefresh        
+        wnoutrefresh(input_win);	//prevent the input bar from disappearing half cooked way
+        doupdate();			//"harder" update
+        
+        pthread_mutex_unlock(&screen_mutex);
+        if (strcmp(rbuff, "STOP") == 0) break;
     }
     pthread_cancel(send_thread);
     pthread_exit(NULL);
@@ -187,7 +235,7 @@ long dhexchange() {
 	}
 	long r2=modexp(base,y2,mod);
 	send(skfd, &r2, sizeof(r2), 0);
-
+	
 	return modexp(r1, y2, mod);
 }
 
@@ -215,7 +263,7 @@ int reverseDigits(int num) {
         rev_num = rev_num * 10 + num % 10;
         num = num / 10;
     }    return rev_num;
-}
+} 
 
 
 char *vigenereDe(const char *cipher, const char *key) {
@@ -259,12 +307,12 @@ char *vigenereDe(const char *cipher, const char *key) {
 
 char *vigenereEn(char plain[128],char key[11]) {
 	int i,counter=0,keyLen,ki,pi;
-	static char cipher[128];
+	static char cipher[128];	
 	const int temp=strlen(plain);
 	char newKey[temp+1],c;
 	newKey[temp+1]='\0';
 	keyLen=strlen(key);
-
+	
 	for(i=0;i<temp;++i) {	//generate keystream of same length as plaintext
 		if(counter>=keyLen)
 			counter=0;
@@ -272,7 +320,7 @@ char *vigenereEn(char plain[128],char key[11]) {
 		counter++;
 	}
 	newKey[temp]='\0';
-
+	
 	int kpos=0; // position in key::VERI CURCIAL::
 	for (i=0;i<temp;i++) {
 	    c=plain[i];
