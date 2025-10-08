@@ -1,4 +1,4 @@
-//TCP Chat Server Program
+//TCP Chat Server Program v6
 
 #include<sys/socket.h>
 #include<sys/types.h>
