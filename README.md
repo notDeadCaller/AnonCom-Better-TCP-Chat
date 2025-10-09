@@ -32,7 +32,7 @@ ADDED 'firewall.conf' <br>
 - [x] Fixed a potential security risk in variable handling
 
 -------------------------
-Log 3 ("_You didn't say the magic word!_") <br>
+Log 3 ("_Uh uh uh! You didn't say the magic word!_") <br>
 11.Sep.2025
 
 UPDATED 'client.c' and 'server.c'<br>
@@ -64,7 +64,7 @@ UPDATED 'client.c' and 'server.c'<br>
 - [x] Optimized client code by removing stale functions
 
 -------------------------
-Log 5 ("_Repair, Reflect and Re-emerge_") <br>
+Log 6 ("_Repair, Reflect and Re-emerge_") <br>
 08.Oct.2025
 
 UPDATED 'client.c' and 'server.c'<br>
