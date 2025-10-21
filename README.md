@@ -86,7 +86,7 @@ ADDED 'setup.sh' <br>
 ADDED './runServer.c' and './runClient' <br>
   Features as of this commit:<br>
 - [x] Added postquantum cryptographic security via the CRYSTALS-Kyber 768 algorithm for the shared session key, replacing Diffie Hellman Key Exchange<br>
-- [x] Added the AES-GCM 256 standard cipher for encrypt/decryption of chat messages, along with its innate HMAC principle<br>
+- [x] Added the AES-GCM 256 standard cipher for encrypt/decryption of chat messages, along with its innate HMAC principle, replacing Vigenere Cipher<br>
 - [x] Optimized the workflow for first time users via Makefile and setup.sh files<br>
 - [x] Code revision to remove obselete functions<br>
 - [x] Updated the token refill rate for rate limiting<br>
@@ -94,8 +94,7 @@ ADDED './runServer.c' and './runClient' <br>
 
 --------------------------
 
-## Dependencies
-
+# Dependencies
 This project requires the **Open Quantum Safe (OQS)** library (`liboqs`) for its post-quantum cryptography. The `setup.sh` script will automatically clone and build it.
 
 - **`liboqs`:** [https://github.com/open-quantum-safe/liboqs](https://github.com/open-quantum-safe/liboqs)
