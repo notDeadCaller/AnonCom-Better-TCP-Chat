@@ -77,7 +77,7 @@ ADDED 'motd.txt' <br>
 - [x] Added a word of the day for each chat session<br>
 
 -------------------------
-Log 7 ("_Wanted dead ~~or~~and alive_") <br>
+Log 7 ("_Wanted dead ~~or~~ and alive_") <br>
 21.Oct.2025
 
 UPDATED 'client.c' and 'server.c'<br>
@@ -90,3 +90,13 @@ ADDED './runServer.c' and './runClient' <br>
 - [x] Optimized the workflow for first time users via Makefile and setup.sh files<br>
 - [x] Code revision to remove obselete functions<br>
 - [x] Updated the token refill rate for rate limiting<br>
+
+
+--------------------------
+
+## Dependencies
+
+This project requires the **Open Quantum Safe (OQS)** library (`liboqs`) for its post-quantum cryptography. The `setup.sh` script will automatically clone and build it.
+
+- **`liboqs`:** [https://github.com/open-quantum-safe/liboqs](https://github.com/open-quantum-safe/liboqs)
+- `liboqs` is licensed under the MIT license.
