@@ -3,7 +3,7 @@ goofy ahh private (hoepfully) TCP Chat
 
 **How to Use Client?** <br>
 Download the client.c, Makefile, setup.sh and runClient.sh files <br>
-Get dependencies (libOQS) using `./setup.sh` on any linux terminal (tested on WSL/Termux/VMWare using Ubuntu/Kali) <br>
+Get dependencies [liboqs](https://github.com/open-quantum-safe/liboqs) using `./setup.sh` on any linux terminal (tested on WSL/Termux/VMWare using Ubuntu/Kali) <br>
 Compile using `make` <br?
 Execute using `./runClient.sh` for 1st time or simply `./client` for subsequent executions <br>
 Enter the public host IP `152.67.7.144` <br>
@@ -85,7 +85,7 @@ ADDED 'Makefile' <br>
 ADDED 'setup.sh' <br>
 ADDED './runServer.c' and './runClient' <br>
   Features as of this commit:<br>
-- [x] Added postvquantum cryptographic security via the CRYSTALS-Kyber 768 algorithm for the shared session key, replacing Diffie Hellman Key Exchange<br>
+- [x] Added postquantum cryptographic security via the CRYSTALS-Kyber 768 algorithm for the shared session key, replacing Diffie Hellman Key Exchange<br>
 - [x] Added the AES-GCM 256 standard cipher for encrypt/decryption of chat messages, along with its innate HMAC principle<br>
 - [x] Optimized the workflow for first time users via Makefile and setup.sh files<br>
 - [x] Code revision to remove obselete functions<br>
