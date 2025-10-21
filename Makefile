@@ -13,11 +13,11 @@ all: $(TARGET_SERVER) $(TARGET_CLIENT)
 
 # Rule to build the server
 $(TARGET_SERVER): server.c
-	$(CC) serverTest.c -o $(TARGET_SERVER) $(CFLAGS) $(LDFLAGS) $(LIBS)
+	$(CC) server.c -o $(TARGET_SERVER) $(CFLAGS) $(LDFLAGS) $(LIBS)
 
 # Rule to build the client
 $(TARGET_CLIENT): client.c
-	$(CC) clientTest.c -o $(TARGET_CLIENT) $(CFLAGS) $(LDFLAGS) $(LIBS)
+	$(CC) client.c -o $(TARGET_CLIENT) $(CFLAGS) $(LDFLAGS) $(LIBS)
 
 # Rule to clean up compiled files
 clean:
