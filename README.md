@@ -2,14 +2,9 @@
 goofy ahh private (hoepfully) TCP Chat
 
 **How to Use Client?** <br>
-Download the client.c, Makefile, setup.sh and runClient.sh files <br>
-Get dependencies [liboqs](https://github.com/open-quantum-safe/liboqs) using `./setup.sh` on any linux terminal (tested on WSL/Termux/VMWare using Ubuntu/Kali) <br>
-Compile using `make` <br?
-Execute using `./runClient.sh` for 1st time or simply `./client` for subsequent executions <br>
-Enter the public host IP `152.67.7.144` <br>
-Enter the port `25021` <br>
-Enter the password (if in allowlist) else the golden passkey <br>
-Beep Boop - You're in!...as long as my server.c is running ;) <br>
+!!! EXPERIMENTAL BRANCH !!!
+!!! Yet to be given a proper workflow makefile and setup.sh !!!
+!!! Only for testing purposing right now, do not pull without proper knowledge !!!
 
 -------------------------
 Log 1 ("_the first 04:04_") <br>
