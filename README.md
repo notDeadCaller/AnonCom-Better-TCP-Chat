@@ -2,9 +2,9 @@
 goofy ahh private (hoepfully) TCP Chat
 
 **How to Use Client?** <br>
-!!! EXPERIMENTAL BRANCH !!!
-!!! Yet to be given a proper workflow makefile and setup.sh !!!
-!!! Only for testing purposing right now, do not pull without proper knowledge !!!
+!!! EXPERIMENTAL BRANCH !!! <br>
+!!! Yet to be given a proper workflow makefile and setup.sh !!! <br>
+!!! Only for testing purposing right now, do not pull without proper knowledge !!! <br>
 
 -------------------------
 Log 1 ("_the first 04:04_") <br>
