@@ -1,12 +1,13 @@
-# Better-TCP-Chat 
+# AnonCom: Better-TCP-Chat 
 goofy ahh private (hoepfully) TCP Chat
 
 **How to Use Client?** <br>
-Download the client.c file <br>
-Compile it using `gcc client.c` on any linux terminal (tested on WSL/Termux/VMWare using Ubuntu/Kali) <br>
-Execute using `./a.out` <br>
+Download the client.c, Makefile, setup.sh and runClient.sh files <br>
+Get dependencies [liboqs](https://github.com/open-quantum-safe/liboqs) using `./setup.sh` on any linux terminal (tested on WSL/Termux/VMWare using Ubuntu/Kali) <br>
+Compile using `make` <br?
+Execute using `./runClient.sh` for 1st time or simply `./client` for subsequent executions <br>
 Enter the public host IP `152.67.7.144` <br>
-Enter the port `25020` <br>
+Enter the port `25021` <br>
 Enter the password (if in allowlist) else the golden passkey <br>
 Beep Boop - You're in!...as long as my server.c is running ;) <br>
 
@@ -74,3 +75,45 @@ ADDED 'motd.txt' <br>
 - [x] Significant terminal UI overhaul<br>
 - [x] Added rate limiting for clients via Token Bucket principle<br>
 - [x] Added a word of the day for each chat session<br>
+
+-------------------------
+Log 7 ("_Wanted dead ~~or~~ and alive_") <br>
+21.Oct.2025
+
+UPDATED 'client.c' and 'server.c'<br>
+ADDED 'Makefile' <br>
+ADDED 'setup.sh' <br>
+ADDED './runServer.c' and './runClient' <br>
+  Features as of this commit:<br>
+- [x] Added postquantum cryptographic security via the CRYSTALS-Kyber 768 algorithm for the shared session key, replacing Diffie Hellman Key Exchange<br>
+- [x] Added the AES-GCM 256 standard cipher for encrypt/decryption of chat messages, along with its innate HMAC principle, replacing Vigenere Cipher<br>
+- [x] Optimized the workflow for first time users via Makefile and setup.sh files<br>
+- [x] Code revision to remove obselete functions<br>
+- [x] Updated the token refill rate for rate limiting<br>
+
+
+-------------------------
+Log 8 ("_whomp whomp Mallory_") <br>
+24.Oct.2025
+
+REPLACED 'client.c' and 'server.c' with 'clientTest.c' and 'serverTest.c'<br>
+ADDED 'generateServerKeys.c' <br>
+ADDED 'gen_keys' <br>
+ADDED 'server_dilithium.pub' <br>
+ADDED 'server_dilithium.key' <br>
+ADDED 'blocklist.conf' <br>
+ADDED 'gen_keys' <br>
+ADDED '.gitmodules' <br>
+  Features as of this commit:<br>
+- [x] Added postquantum signature protocol via the CRYSTALS-Dilithium algorithm for verifying server authenticity, preventing MiTM attacks<br>
+- [x] Added implementation of SCRAM protocol to authenticate client, via indenpendtly verifying passowrds without sharing them over the channel, preventing Replay attacks <br>
+- [x] Added in chat commands for basic emojis<br>
+- [x] Added dynamic IP blocklisting and database for temporarily banned IPs, to prevent DoS-password attacks<br>
+- [x] Optimized the code by reducing dependencies on global variables and using structs instead<br>
+
+
+# Dependencies
+This project requires the **Open Quantum Safe (OQS)** library (`liboqs`) for its post-quantum cryptography. The `setup.sh` script will automatically clone and build it.
+
+- **`liboqs`:** [https://github.com/open-quantum-safe/liboqs](https://github.com/open-quantum-safe/liboqs)
+- `liboqs` is licensed under the MIT license.
