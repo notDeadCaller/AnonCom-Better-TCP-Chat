@@ -1,0 +1,11 @@
+Potential Future Code Improvements & Features List
+---------------------------------------------------
+
+	1) Integrate encryption directly while reading input from user..i.e. replace scanf()
+	   with some other custom function...:D
+	   
+	2) Optimize code...determine and minimize memory usage of strings and shi
+	
+	3) Optimize code...add comments
+	
+	4) Optimize code...add more functions to reguce main() overcrowoding
