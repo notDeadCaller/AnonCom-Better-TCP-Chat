@@ -26,7 +26,7 @@
 #define GOLDENKEY "DontForgetTheGoldenKey123$"
 #define MAX_ALLOWED 20   //max IPs in whiteleist
 #define MAX_CHARGES 10.5 //rate limiting counters
-#define CHARGE_RATE 1.5 
+#define CHARGE_RATE 1.5
 
 #define MAX_AUTH_FAILURES 5      //attempts before blocking
 #define FAILURE_TIME_WINDOW 60   //time window (seconds) for failures
@@ -63,8 +63,8 @@ typedef struct {
     uint8_t *dilithium_sk;     // Loaded secret signing key
     size_t dilithium_sk_len;
 } ServerCryptoState;
-typedef struct {	
-    char ip_addr[INET_ADDRSTRLEN];	
+typedef struct {
+    char ip_addr[INET_ADDRSTRLEN];
     time_t first_failure_time;
     int failure_count;
 } AuthFailureRecord;
@@ -268,7 +268,9 @@ int aes_gcm_decrypt(const unsigned char *ciphertext, int ciphertext_len,
 
 int main() {
 	const int sizeOk=3;
-	printf("<TCP CHAT SERVER>\n");
+	printf("~~~~~~~~~~~~~~~~~~~~~~~\n");
+	printf("<ANON COMM: SERVER CLI>\n");
+	printf("~~~~~~~~~~~~~~~~~~~~~~~\n");
 	pthread_t tid;
 
 	if((listenfd=socket(AF_INET, SOCK_STREAM, 0))<0)
@@ -276,14 +278,14 @@ int main() {
 		printf("\nserver error: cannot create socket!\n");
 		exit(1);
 	}
-	
+
 	bzero(&serv_addr, sizeof(serv_addr));
 
 	serv_addr.sin_family=AF_INET;
 	serv_addr.sin_port=htons(serv_port);
 	inet_aton(serv_ip, (&serv_addr.sin_addr));
 
-	
+
 	if((bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)))<0)
 	{
 		printf("\nSERVER ERROR: cannot bind");
@@ -291,14 +293,14 @@ int main() {
 		exit(1);
 	}
 
-	if((listen(listenfd, 5))<0) 
+	if((listen(listenfd, 5))<0)
 	{
 		printf("\nSERVER ERROR cannot listen");
 		close(listenfd);
 		exit(1);
 	}
-	
-	getAllowlist("firewall.conf");	
+
+	getAllowlist("firewall.conf");
 	ServerCryptoState server_keys;
 	AuthFailureRecord failure_log[MAX_FAILURE_TRACK_IPS];
         int failure_log_count = 0;
@@ -316,22 +318,22 @@ int main() {
 		printf("SERVER Listening for clients\n");
 		atomic_store(&waiting, 1);
 		pthread_create(&tid, NULL,startWaitAnim, NULL);
-		
+
 		if((connfd=accept(listenfd, (struct sockaddr*)&cli_addr,&cli_addr_len))<0)
-		{		
+		{
 			printf("SERVER ERROR cannot accept client coonections\n");
 			close(listenfd);
 			exit(1);
 		}
 		atomic_store(&waiting, 0);
 		pthread_join(tid, NULL);
-		
+
 		char client_ip[INET_ADDRSTRLEN];
 		inet_ntop(AF_INET, &cli_addr.sin_addr, client_ip, sizeof(client_ip));
-		
+
 		//RUDIMENTARY CONNECTION ESTABLISHED
 		printf("SERVER connection from client %s received\n",inet_ntoa(cli_addr.sin_addr));
-		
+
 		//BLOCKLIST VERIFICATIONS
 		int blocked_idx = find_ip_in_blocklist(client_ip, blocklist, blocklist_count);
         	if (blocked_idx != -1) {
@@ -339,39 +341,53 @@ int main() {
                  	printf("\a\033[0;31mConnection from %s REJECTED (IP is blocked)\033[0m\n", client_ip);
                  	close(connfd);
                  	continue;
-           	  } else 
+           	  } else
                  	printf("Info: Found expired blocklist entry for %s during check.\n", client_ip);
        	 	}
-		
-		shared_secret_bin = authenticated_kyber_exchange_server(connfd, &server_keys);
-		if (shared_secret_bin == NULL) {
-		    printf("Authenticated key exchange failed.\n");
-		    close(connfd);
-		    continue; // Wait for next client
-		}
+
+
         	//size_t key_len = 32; // Kyber-768 secret length
 		int auth_result = authenticateClient(connfd);
 		if (auth_result==0) {	//if either auth fail, then stop
 	 	    if (record_auth_failure(client_ip, failure_log, &failure_log_count, MAX_FAILURE_TRACK_IPS)) {
                 	// Threshold met, block the IP
                 	add_ip_to_blocklist(client_ip, blocklist, &blocklist_count, MAX_BLOCKLIST_IPS);
-            	    }	
+            	    }
 		    printf("\a\033[0;31mSERVER: Connection from %s REJECTED\033[0m\n",client_ip);
 		    close(connfd);
 		    continue;
 		}
-        	else if (!isAllowed(client_ip)) { //if not allowlisted...
+		if (!isAllowed(client_ip) && goldenKeyFlag == 0) {
+            // Client is NOT on the allowlist, AND they did NOT use the golden key.
+            printf("\a\033[0;31mConnection from %s DENIED (not in allowlist)\033[0m\n", client_ip);
+            const char* allow_msg = "ERROR: Connection rejected. Your IP is not on the allowlist.\n";
+            write(connfd, allow_msg, strlen(allow_msg));
+            close(connfd);
+			continue;
+        }
+        shared_secret_bin = authenticated_kyber_exchange_server(connfd, &server_keys);
+        if (goldenKeyFlag) {
+            printf("Firewall: Golden Key bypass active for %s.\n", client_ip);
+        } else {
+            printf("Firewall: Client IP %s is allowed.\n", client_ip);
+        }
+		if (shared_secret_bin == NULL) {
+		    printf("Authenticated key exchange failed for %s.\n", client_ip);
+		    close(connfd);
+		    continue;
+		}
+        	/*else if (!isAllowed(client_ip)) { //if not allowlisted...
 	        	if(goldenKeyFlag) printf("***Firewall BYPASSED***\n"); //but used Goldenkey access
 	        	else {	//if not in alowlist + normal password used, then stop
 			printf("\a\033[0;31mConnection from %s DENIED (not in allowlist)\033[0m\n", client_ip);
 			close(connfd);
-			continue; }	
+			continue; }
 		} else
-		 	clear_auth_failures(client_ip, failure_log, failure_log_count);
-		
-		//const long key=dhexchange();			
-		
-		write(connfd,"OK",sizeOk);	
+		 	clear_auth_failures(client_ip, failure_log, failure_log_count);*/
+
+		//const long key=dhexchange();
+
+		write(connfd,"OK",sizeOk);
 		printf("SERVER: \033[0;32mAUTHENTICATION SUCCESSFUL for %s\033[0m\n",inet_ntoa(cli_addr.sin_addr));
 		fflush(stdout);
 
@@ -390,19 +406,19 @@ int main() {
 		last_refill_time = time(NULL);	//start client chat with max charges
 		clientCharges=MAX_CHARGES;
 		fflush(stdout);
-		
-		//chat threads		
+
+		//chat threads
 		printf("Server key: %s\n", shared_secret_bin);
 		char *motd=getMessageOfTheDay();		//send message of day to client
 		printf("Word of the day is:  %s",motd);
 		w=write(connfd,motd, strlen(motd));
-		
+
 		printf("\n:::Type \033[0;31m'STOP'\033[0m to end the connection:::\n");
 		sleep(2);//2sec delay
 		initscr();
 		start_color();
 	    	cbreak();	//---BEGIN NCURSES MODE---
-	    
+
 		int height, width;
 	    	getmaxyx(stdscr, height, width);
 		for (int i = 0; i < LINES - 1; i++)	//push to (start chat from) the bottom
@@ -415,7 +431,7 @@ int main() {
 
 	    	// Create a 1-line-high window at the bottom of the screen for input
 	   	input_win = newwin(1, width, height - 1, 0);
-	    
+
 	    	pthread_mutex_init(&screen_mutex, NULL);
 	    	chat_is_active=1;
 
@@ -443,10 +459,10 @@ int main() {
 		pthread_join(send_thread, NULL);
 		pthread_join(recv_thread, NULL);
 		pthread_mutex_destroy(&screen_mutex);
-		endwin(); 
+		endwin();
 		free(shared_secret_bin);
 		close(connfd);
-		
+
 	}
 	cleanup_server_keys(&server_keys);
 	return 0;
@@ -515,7 +531,7 @@ void* startWaitAnim(void *arg) {
         usleep(200000); // 300 ms
         printf("\r \r");
         fflush(stdout);
-    }    
+    }
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     printf("\r                             \r"); //take cursor to start, print bigass space, then again to start
     fflush(stdout);
@@ -525,12 +541,12 @@ void* startWaitAnim(void *arg) {
 void *send_handler(void *arg) {
     char plaintext_buff[MSG_BUF_SIZE];
     char prompt[] = "> ";
-    
+
     // Buffers for the AES-GCM components
     unsigned char iv[IV_LEN];
     unsigned char tag[TAG_LEN];
     unsigned char ciphertext_buff[MSG_BUF_SIZE];
-    
+
     // A single buffer to assemble our network packet
     unsigned char packet_buff[MSG_BUF_SIZE + IV_LEN + TAG_LEN];
     //wtimeout(input_win, 100);
@@ -570,7 +586,7 @@ void *send_handler(void *arg) {
         if (write(connfd, packet_buff, packet_len) < 0) {
             break;
         }
-        
+
         if (strcmp(plaintext_buff, "STOP") == 0) {
 	    chat_is_active = 0;
             break;
@@ -592,13 +608,13 @@ void *receive_handler(void *arg) {
 
     while (chat_is_active) {
 	bytes_read=read(connfd, packet_buff, sizeof(packet_buff));
-	if (bytes_read <= 0) {	    	
+	if (bytes_read <= 0) {
             break;
         }
     	if (!can_send_message()) {
             const char* warning_msg = "You are being rate limited. Please slow down!";
-            
-            unsigned char warning_iv[IV_LEN];	
+
+            unsigned char warning_iv[IV_LEN];
             unsigned char warning_tag[TAG_LEN];
             unsigned char warning_ciphertext[MSG_BUF_SIZE];
             int warning_ct_len = aes_gcm_encrypt(
@@ -614,7 +630,7 @@ void *receive_handler(void *arg) {
                 memcpy(warning_packet + IV_LEN + TAG_LEN, warning_ciphertext, warning_ct_len);
                 write(connfd, warning_packet, (IV_LEN + TAG_LEN + warning_ct_len));
             }
-            continue; 
+            continue;
         }
         // Ensure we have at least enough data for the IV and tag
         if (bytes_read < IV_LEN + TAG_LEN) {
@@ -632,15 +648,15 @@ void *receive_handler(void *arg) {
             tag, shared_secret_bin, iv,
             plaintext_buff
         );
-        
+
         pthread_mutex_lock(&screen_mutex);
-	
+
         if (plaintext_len < 0) {
             // DECRYPTION FAILED! Tag mismatch means the message was tampered with.
             wprintw(stdscr, "***SECURITY ALERT: Received a corrupted or tampered message***\n");
         } else {
             // Decryption successful, display the plaintext
-            init_pair(1, COLOR_CYAN, COLOR_BLACK);             
+            init_pair(1, COLOR_CYAN, COLOR_BLACK);
             attron(COLOR_PAIR(1));
             plaintext_buff[plaintext_len] = '\0';
             wprintw(stdscr, "Client says: %s\n", plaintext_buff);
@@ -650,14 +666,14 @@ void *receive_handler(void *arg) {
             	break;
             }
         }
-	
+
         wnoutrefresh(stdscr);
         wnoutrefresh(input_win);
         doupdate();
         pthread_mutex_unlock(&screen_mutex);
         if(!chat_is_active) break;
     }
-    
+
     chat_is_active = 0;
     shutdown(connfd, SHUT_RDWR);
     pthread_exit(NULL);
@@ -669,7 +685,7 @@ void generate_nonce(char *nonce_hex_buffer) {
         perror("RAND_bytes failed");
         exit(1);
     }
-    
+
     for (int i = 0; i < NONCE_LEN; i++) {	//conv to hex
         sprintf(nonce_hex_buffer + (i * 2), "%02x", nonce_bin[i]);
     }
@@ -730,7 +746,7 @@ void calculate_sha256(const char *input, size_t input_len, char *output_hex_hash
 int can_send_message() {
     time_t now = time(NULL);
     double time_elapsed = difftime(now, last_refill_time);
-    
+
     clientCharges+=time_elapsed*CHARGE_RATE; //refill charge meter
     last_refill_time = now;
 
@@ -771,7 +787,7 @@ long dhexchange() {
 	    //perror("recv r2");
 	    close(connfd);
 	    return 0;
-	}		
+	}
 	return modexp(r2, y, mod);
 }
 
@@ -1055,7 +1071,7 @@ const char* addEmojis(const char* input) {
     }
     if (strcmp(input, "/lol") == 0 || strcmp(input, "/laugh") == 0 || strcmp(input, "/lmao") == 0) {
         return "L(° O °L)";
-    }    
+    }
     if (strcmp(input, "/tableflip") == 0) {
         return "(╯°□°）╯︵ ┻━┻";
     }
