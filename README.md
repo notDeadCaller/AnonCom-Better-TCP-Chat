@@ -1,6 +1,20 @@
 # AnonCom: Better-TCP-Chat 
 goofy ahh private (hoepfully) TCP Chat
 
+Client <br>
+  ↓
+Firewall / Network Filters <br>
+  ↓
+Post-Quantum Handshake (Kyber KEM + optional hybrid) <br>
+  ↓
+Session Manager (key rotation + nonces) <br>
+  ↓
+Encryption Layer (AES/GCM or similar) <br>
+  ↓
+Transport Queue <br>
+  ↓
+Server <br>
+
 **How to Use Client?** <br>
 Download the client.c, Makefile, setup.sh and runClient.sh files <br>
 Get dependencies [liboqs](https://github.com/open-quantum-safe/liboqs) using `./setup.sh` on any linux terminal (tested on WSL/Termux/VMWare using Ubuntu/Kali) <br>
