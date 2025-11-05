@@ -9,9 +9,9 @@ Post-Quantum Handshake (Kyber KEM + optional hybrid) <br>
   ↓
 <br> Session Manager (key rotation + nonces) <br>
   ↓
-Encryption Layer (AES/GCM or similar) <br>
+<br>Encryption Layer (AES/GCM or similar) <br>
   ↓
-Transport Queue <br>
+<br>Transport Queue <br>
   ↓ <br>
 Server <br>
 
