@@ -2,7 +2,7 @@
 goofy ahh private (hoepfully) TCP Chat
 
 Client <br>
-  ↓  <br>
+  ↓ 
 Firewall / Network Filters <br>
   ↓  
 Post-Quantum Handshake (Kyber KEM + optional hybrid) <br>
