@@ -5,9 +5,9 @@ Client <br>
   ↓ 
 <br>Firewall / Network Filters <br>
   ↓  
-Post-Quantum Handshake (Kyber KEM + optional hybrid) <br>
+<br> Post-Quantum Handshake (Kyber KEM + optional hybrid) <br>
   ↓
-Session Manager (key rotation + nonces) <br>
+<br> Session Manager (key rotation + nonces) <br>
   ↓
 Encryption Layer (AES/GCM or similar) <br>
   ↓
