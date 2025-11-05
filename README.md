@@ -4,7 +4,7 @@ goofy ahh private (hoepfully) TCP Chat
 Client <br>
   ↓  <br>
 Firewall / Network Filters <br>
-  ↓  <br>
+  ↓  
 Post-Quantum Handshake (Kyber KEM + optional hybrid) <br>
   ↓
 Session Manager (key rotation + nonces) <br>
@@ -12,7 +12,7 @@ Session Manager (key rotation + nonces) <br>
 Encryption Layer (AES/GCM or similar) <br>
   ↓
 Transport Queue <br>
-  ↓
+  ↓ <br>
 Server <br>
 
 **How to Use Client?** <br>
