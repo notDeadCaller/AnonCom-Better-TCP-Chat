@@ -2,9 +2,9 @@
 goofy ahh private (hoepfully) TCP Chat
 
 Client <br>
-  ↓
+  ↓  <br>
 Firewall / Network Filters <br>
-  ↓
+  ↓  <br>
 Post-Quantum Handshake (Kyber KEM + optional hybrid) <br>
   ↓
 Session Manager (key rotation + nonces) <br>
